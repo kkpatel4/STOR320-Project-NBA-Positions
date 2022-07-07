@@ -1,0 +1,455 @@
+---
+title: "An Analysis of Positions in the NBA"
+author: "Julian, Kush, Trevor, Ethan"
+date: "4/23/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r, include=FALSE}
+library(tidyverse)
+library(readr)
+library(stringr)
+library(cluster)
+```
+
+# Introduction
+
+- goals and/or questions are clearly stated and well-defined
+- overview of the dataset and how it is relevant for the goals/questions
+- summary and reflections on answers to questions or results of goals
+- appropriate plots or other output where and if needed to support the text
+
+
+# Data Description and Exploration
+
+- key variables are clearly defined
+- dataset context and source is explained to a degree that is relevant
+can be a brief mention if there is nothing much to say, e.g. NBA stats released by the league
+- includes only output that contributes valuable information to understanding the dataset
+e.g. don't just print a large object
+- makes reasonable and thorough attempt to explore data patterns and structure that are essential to evaluating goals/questions
+- plots and summaries are effectively communicate relevant ideas
+- accompanying text supplements the other output, rather than simply summarizing what the reader can already see
+- rather than summarizing the output, tell the reader why it is important, some follow-up thoughts or how it affected your project goals
+
+```{r}
+NBA_Player_Stats_18_to_19 <- read_csv("STOR 320 Data 1.csv")
+
+#First, we changed any value that was missing or N/A into 0
+
+NBA_Player_Stats_18_to_19[is.na(NBA_Player_Stats_18_to_19)] <- 0 
+
+# We filtered to only work with data that had players who played at least 1000 minutes in a season. This made the data easier to work with.
+
+NBA_Player_Stats_18_to_19 <-filter(NBA_Player_Stats_18_to_19, MP >= 1000)
+
+# Make Variable Names Easy to Read
+
+colnames(NBA_Player_Stats_18_to_19) <- c("Rk", "First", "Last", "Pos", "Age", "Team", "Games", "Minutes", "PER", "TS", "ThreePAr", "FTr", "ORB", "DRB", "TRB", "AST", "STL", "BLK", "TOV", "USG", "OWS", "DWS", "WS", "WS/48", "OBPM", "DBPM", "BPM", "VORP")
+
+# The 5 different positions were changed into a numeric value so it is easier for clustering
+nbaNows <- mutate(NBA_Player_Stats_18_to_19, PosNum = ifelse
+                 (Pos == "PG", 1, ifelse
+                   (Pos == "SG", 2, ifelse
+                     (Pos == "SF", 3, ifelse
+                       (Pos == "PF", 4, 5)))))
+nbaNows <- mutate(nbaNows, Name = paste(First, Last))
+
+nbaNow <- select(nbaNows, -Rk, -First, -Last, Age, -Games, -Minutes, -OBPM, -DBPM, -PER, -TS, -BPM, -VORP, -PosNum, -WS, -OWS, -DWS, -"WS/48")
+
+nbaNow <- nbaNow %>%
+  select(Name, everything()) %>% mutate(Name = str_remove(Name, "\\\\[[:alnum:]]*"))
+```
+
+```{r}
+NBA_Player_Stats_08_to_09 <- read_csv("NBA_Player_Stats_08_to_09.csv")
+
+#First, we changed any value that was missing or N/A into 0
+
+NBA_Player_Stats_08_to_09[is.na(NBA_Player_Stats_08_to_09)] = 0
+
+#Then, based on inspection, we took out the X29 and X30 columns since for every player, the value was 0 and was not significant to data and performance of players and their positions
+
+NBA_Player_Stats_08_to_09 <- NBA_Player_Stats_08_to_09 %>% select(-X29, -X30)
+
+#First we had to convert minutes played here to a double variable
+
+NBA_Player_Stats_08_to_09$MP <- as.numeric(NBA_Player_Stats_08_to_09$MP)
+#Again, we filtered to only work with players who had played at least 1000 minutes in a season.
+
+NBA_Player_Stats_08_to_09 <- filter(NBA_Player_Stats_08_to_09, MP >= 1000)
+
+# Column names were then changed to Names that were easier to Read and understand
+
+colnames(NBA_Player_Stats_08_to_09) <- c("Rk", "First", "Last", "Pos", "Age", "Team", "Games", "Minutes", "PER", "TS", "ThreePAr", "FTr","ORB", "DRB", "TRB", "AST", "STL", "BLK", "TOV", "USG", "OWS", "DWS", "WS", "WS/48", "OBPM", "DBPM", "BPM", "VORP")
+
+# The 5 different positions were changed into a numeric value so it is easier for clustering
+nbaOlds <- mutate(NBA_Player_Stats_08_to_09, PosNum = ifelse
+                 (Pos == "PG", 1, ifelse
+                   (Pos == "SG", 2, ifelse
+                     (Pos == "SF", 3, ifelse
+                       (Pos == "PF", 4, 5)))))
+nbaOlds <- mutate(nbaOlds, Name = paste(First, Last))
+
+nbaOld <- select(nbaOlds, -Rk, -First, -Last, Age, -Games, -Minutes, -OBPM, -DBPM, -PER, -TS, -BPM, -VORP, -PosNum, -WS, -OWS, -DWS, -"WS/48")
+
+nbaOld <- nbaOld %>%
+  select(Name, everything()) %>% mutate(Name = str_remove(Name, "\\\\[[:alnum:]]*"))
+```
+
+```{r}
+NBA_Player_Stats_14_to_15 <- read_csv("NBA_Player_Stats_14_to_15.csv")
+
+#First, we changed any value that was missing or N/A into 0
+
+NBA_Player_Stats_14_to_15[is.na(NBA_Player_Stats_14_to_15)] = 0
+
+
+colnames(NBA_Player_Stats_14_to_15) <- c("Rk", "Name", "Pos", "Age", "Team", 
+                    "Games", "Minutes", "PER", "TS", "ThreePAr", "FTr",
+                    "ORB", "DRB", "TRB", "AST", "STL", "BLK", "TOV", "USG", "IDK", "OWS", "DWS", "WS", "WS/48","idk", "OBPM", "DBPM", "BPM", "VORP")
+
+NBA_Player_Stats_14_to_15 <- mutate(NBA_Player_Stats_14_to_15, Name = str_remove(Name, "\\\\[[:alnum:]]*"))
+```
+
+```{r}
+# Cleaning the General Stats for 2018-19 to just get 3 Pointers Taken
+basicStats <- read_csv("genStats_18_to_19.csv")
+colnames(basicStats) <- c("Rk", "Player", "Pos", "Age", "Team", 
+                    "Games", "Games Started", "Minutes", "FG", "FGA", "FGPct", "ThreePt",
+                    "ThreePtA", "ThreePtPct", "TwoPt", "TwoPtA", "2PtPct", "eFGPct", "FT", "FTA", "FTPct", "ORebs", "DRebs", "Rebs", "Assists", "Steals", "Blocks", "TOs", "Fouls", "Points")
+
+# Change players with two positions to have their primary
+basicStats <- mutate(basicStats, Pos = ifelse(Pos == "C-PF", "C", substr(Pos, 0, 2)))
+
+posStats <- group_by(basicStats, Pos) %>% summarize(size = n(), threesTaken = sum(ThreePtA), years = '2018-19')
+```
+
+```{r}
+# Cleaning the General Stats for 2008-09 to just get 3 Pointers Taken
+basicStatsOld <- read_csv("genStats_08_to_09.csv")
+colnames(basicStatsOld) <- c("Rk", "Player", "Pos", "Age", "Team", 
+                    "Games", "Games Started", "Minutes", "FG", "FGA", "FGPct", "ThreePt",
+                    "ThreePtA", "ThreePtPct", "TwoPt", "TwoPtA", "2PtPct", "eFGPct", "FT", "FTA", "FTPct", "ORebs", "DRebs", "Rebs", "Assists", "Steals", "Blocks", "TOs", "Fouls", "Points")
+
+# Change players with two positions to have their primary
+basicStatsOld <- mutate(basicStatsOld, Pos = ifelse(Pos == "C-PF", "C", substr(Pos, 0, 2)))
+
+posStatsOld <- group_by(basicStatsOld, Pos) %>% summarize(size = n(), threesTaken = sum(ThreePtA), years = '2008-09')
+```
+
+```{r}
+threesComparison <- rbind(posStatsOld, posStats)
+```
+
+
+```{r}
+# Take data set for player stats from 1996-2016 that includes draft years
+draft <- read_csv("all_seasons.csv") %>% mutate(draft_year = as.numeric(draft_year))
+
+# Grouping by player name allows us to summarize career stats, as player names will pop up multiple times for each year
+draft <- group_by(draft, player_name) %>% summarize(avg_shooting = mean(ts_pct), assists_pct = mean(ast_pct), dreb_pct = mean(dreb_pct), drafted = min(draft_year)) %>%
+  filter(!is.na(drafted))
+
+# Grouping by "Draft Class"
+draft_by_year <- group_by(draft, drafted) %>% summarize(count = n(), avg_shooting = mean(avg_shooting), assists_pct = mean(assists_pct), dreb_pct = mean(dreb_pct)) %>% filter(count >= 10)
+```
+
+```{r, echo=FALSE}
+shots <-read_csv("shot_logs.csv")
+shots <- mutate(shots, Name = str_to_title(player_name))
+shotsPlayers <- merge(NBA_Player_Stats_14_to_15, shots, by = "Name")
+```
+
+
+
+# Results
+
+- show enough code and output so I can clearly see your methods and results
+probably more code here than in other sections
+- methods are technically appropriate for your data
+- possible technical issues are reasonably evaluated
+e.g. I have mentioned many times in class that linear models can have problems if outcomes are contstrained, for example are non-negative. This is not an automatic disqualifier. But you must show that your model makes sense for the data.
+- methods give valid means to answer questions or achieve goals
+-  thoughtful and technically correct interpretation of output from methods
+most often this will be in text to accompany output or at the top/bottom of the section
+- possible tweaks and improvements to initial methods were explored and implemented
+
+```{r}
+fviz_nbclust(nbaNow[,5:14], kmeans, method = "wss")
+```
+
+
+```{r}
+#trying to define 5 positions in 18-19 season with 5 k-clusters
+K <- 5
+set.seed(1305)
+m <- kmeans(scale(data.matrix(nbaNow[,5:14])), centers = K)
+df_clusters <- mutate(nbaNow, cluster = factor(m$cluster))
+
+group_by(df_clusters, cluster) %>% 
+  summarise(n = n(), 
+            ThreePAr = mean(ThreePAr),
+            FTr = mean(FTr),
+            ORB = mean(ORB),
+            DRB = mean(DRB),
+            TRB = mean(TRB),
+            AST = mean(AST),
+            STL = mean(STL),
+            BLK = mean(BLK),
+            TOV = mean(TOV),
+            USG = mean(USG))
+```
+1 - Three point shooting Big Men
+2 - Traditional Big Men
+3 - Traditional Point Guards/Wings (Ball Handlers)
+4 - Point Forwards/Guys who run the offence but dont shoot lots of threes/VERY HIGH USAGE RATE PLAYERS
+5 - Catch and Shoot guards/wings
+
+```{r}
+cent <- as_tibble(m$centers) %>% mutate(cluster = factor(1:K))
+ggplot(df_clusters, aes(ThreePAr, TRB, color = cluster)) + geom_point(size = 3, alpha = .7) +
+  theme_bw() + scale_color_brewer(type = "qual", palette = "Set1")
+```
+
+```{r}
+df_clusters %>% 
+  filter(cluster == 2)
+```
+
+```{r}
+#trying to define 5 positions in 08-09 season with 5 k-clusters
+K <- 5
+set.seed(1305)
+mOld <- kmeans(scale(data.matrix(nbaOld[,5:14])), centers = K)
+df_clustersOld <- mutate(nbaOld, cluster = factor(mOld$cluster))
+
+group_by(df_clustersOld, cluster) %>% 
+  summarise(n = n(), 
+            ThreePAr = mean(ThreePAr),
+            FTr = mean(FTr),
+            ORB = mean(ORB),
+            DRB = mean(DRB),
+            TRB = mean(TRB),
+            AST = mean(AST),
+            STL = mean(STL),
+            BLK = mean(BLK),
+            TOV = mean(TOV),
+            USG = mean(USG))
+```
+1 - Traditional Big Men who can Block and Rebound but not shoot threes
+2 - Big men who aren't as dominant with blocks and rebounds but can pass (again, not shoot)
+3 - High Usage Players who are well rounded
+4 - Catch and Shoot Guards with a high 3 point attempt rate
+5 - Guards who are playmakers, with defensive steals and a high assist rate
+
+```{r}
+cent <- as_tibble(mOld$centers) %>% mutate(cluster = factor(1:K))
+ggplot(df_clustersOld, aes(ThreePAr, TRB, color = cluster)) + geom_point(size = 3, alpha = .7) +
+  theme_bw() + scale_color_brewer(type = "qual", palette = "Set1")
+```
+
+```{r}
+m$tot.withinss; mOld$tot.withinss
+```
+
+```{r}
+m$betweenss; mOld$betweenss
+```
+
+
+```{r}
+filter(df_clusters) %>%
+  count(cluster)
+filter(df_clusters, Age <= 22) %>%
+  count(cluster)
+```
+-Younger Players shoot Less Threes than most, shooting is a skill that many young playerrs still have to develop
+-Goes against traditional thought that game is moving to more threes
+
+EVERY TEAM WITH AT LEAST 50 WINS
+
+Helper function for plots
+```{r}
+generatePlot <- function(team){
+  d <- filter(df_clusters, Team == team) %>% count(cluster, Team)
+  ggplot(d, aes(x = cluster, y = n)) +
+  geom_bar(stat = 'identity', fill = 'orange') + theme_bw() +
+    ggtitle(paste("Distribution of Positions for ", team))
+}
+```
+
+```{r}
+generatePlot("MIL")
+generatePlot("TOR")
+generatePlot("PHI")
+generatePlot("GSW")
+generatePlot("DEN")
+generatePlot("POR")
+generatePlot("HOU")
+generatePlot("UTA")
+```
+
+-Inside Play still important (teams with traditional big men)
+-Or it could mean taht while big men can still shoot threes, they are still less efficent than having guards shoot threes
+-Lots of catch and shoot players
+-More guards/outside players than big men
+
+
+```{r}
+#trying to define 4 positions with 4 k-clusters
+K <- 4
+set.seed(1305)
+m4 <- kmeans(scale(data.matrix(nbaNow[,5:14])), centers = K)
+df_clusters4 <- mutate(nbaNow, cluster = factor(m4$cluster))
+group_by(df_clusters4, cluster) %>% 
+  summarise(n = n(), 
+            ThreePAr = mean(ThreePAr),
+            FTr = mean(FTr),
+            ORB = mean(ORB),
+            DRB = mean(DRB),
+            TRB = mean(TRB),
+            AST = mean(AST),
+            STL = mean(STL),
+            BLK = mean(BLK),
+            TOV = mean(TOV),
+            USG = mean(USG))
+```
+1 - Stretch (3 point shooting) big men
+2 - Traditional Big Men
+3 - Catch and shoot players
+4 - Ball Handlers/High usage rate
+
+```{r}
+cent <- as_tibble(m4$centers) %>% mutate(cluster = factor(1:K))
+ggplot(df_clusters4, aes(ThreePAr, TRB, color = cluster)) + geom_point(size = 3, alpha = .7) +
+  theme_bw() + scale_color_brewer(type = "qual", palette = "Set1")
+```
+
+```{r}
+#trying to define 6 positions with 6 k-clusters
+K <- 6
+set.seed(1305)
+m6 <- kmeans(scale(data.matrix(nbaNow[,5:14])), centers = K)
+df_clusters6 <- mutate(nbaNow, cluster = factor(m6$cluster))
+group_by(df_clusters6, cluster) %>% 
+  summarise(n = n(), 
+            ThreePAr = mean(ThreePAr),
+            FTr = mean(FTr),
+            ORB = mean(ORB),
+            DRB = mean(DRB),
+            TRB = mean(TRB),
+            AST = mean(AST),
+            STL = mean(STL),
+            BLK = mean(BLK),
+            TOV = mean(TOV),
+            USG = mean(USG))
+```
+1 - Stretch Bigs
+2 - Traditional Bigs
+3 - All Around Wings
+4 - Ball Heavy Guards
+5 - Catch and Shoot Guards
+6 - Catch and Shoot Forwards
+
+I dont think that 6 clusters gives any more insight into what is happening with shifting positions, and 4 clusters might not divide up high usage players enough into their inndivigual styles, but 4 clusters does still work fairly well I beleive
+
+```{r}
+cent <- as_tibble(m6$centers) %>% mutate(cluster = factor(1:K))
+ggplot(df_clusters6, aes(ThreePAr, TRB, color = cluster)) + geom_point(size = 3, alpha = .7) +
+  theme_bw() + scale_color_brewer(type = "qual", palette = "Set1")
+```
+
+```{r}
+m$tot.withinss; m4$tot.withinss; m6$tot.withinss
+```
+
+```{r}
+m$betweenss; m4$betweenss; m6$betweenss
+```
+
+
+```{r}
+positions <- nbaNows$Pos
+pcaNew <- prcomp(nbaNow[,5:14], scale. = TRUE)
+```
+
+```{r}
+positions2 <- nbaOlds$Pos
+pcaOld <- prcomp(nbaOld[,5:14], scale. = TRUE)
+```
+
+
+```{r}
+ggplot(data.frame(pcaNew$rotation), aes(x = PC1, y = PC2, label = rownames(pcaNew$rotation))) + 
+  geom_point(colour = "purple3") + geom_label(size = 5) + theme_minimal() + 
+  xlim(-.6, .6) + ylim(-1, .5)
+```
+
+```{r}
+ggplot(data.frame(pcaOld$rotation), aes(x = PC1, y = PC2, label = rownames(pcaOld$rotation))) + 
+  geom_point(colour = "purple3") + geom_label(size = 5) + theme_minimal() + 
+  xlim(-.6, .6) + ylim(-.5, .7)
+```
+
+
+```{r}
+pcaKmeansNew <- kmeans(pcaNew$x[, c(1,2)], 5)
+as_tibble(pcaNew$x) %>% mutate(cluster = factor(pcaKmeansNew$cluster), Positions = positions) %>%
+  ggplot(aes(PC1, PC2, color = cluster, label = positions)) + geom_label(size = 4) +
+  theme_bw() + scale_color_brewer(type = "qual", palette = "Set1")
+```
+
+```{r}
+pcaKmeansOld <- kmeans(pcaOld$x[, c(1,2)], 5)
+as_tibble(pcaOld$x) %>% mutate(cluster = factor(pcaKmeansOld$cluster), Positions = positions2) %>%
+  ggplot(aes(PC1, PC2, color = cluster, label = positions2)) + geom_label(size = 4) +
+  theme_bw() + scale_color_brewer(type = "qual", palette = "Set1")
+```
+
+
+```{r}
+ggplot(threesComparison, aes(x = years, y = threesTaken, fill = Pos)) +
+  geom_bar(stat = 'identity') + theme_bw()
+```
+
+
+```{r}
+threesMade <- filter(shotsPlayers, PTS == 3)
+twosMade <- filter(shotsPlayers, PTS == 2)
+threesMissed <- filter(shotsPlayers, FGM == 0, PTS_TYPE == 3)
+twosMissed <- filter(shotsPlayers, FGM == 0, PTS_TYPE == 2)
+```
+
+```{r}
+group_by(threesMade, Pos) %>% summarise(sum = n(), shot_dist = mean(SHOT_DIST), def_dist = mean(CLOSE_DEF_DIST))
+```
+```{r}
+group_by(twosMade, Pos) %>% summarise(sum = n(), shot_dist = mean(SHOT_DIST), def_dist = mean(CLOSE_DEF_DIST))
+```
+```{r}
+group_by(threesMissed, Pos) %>% summarise(sum = n(), shot_dist = mean(SHOT_DIST), def_dist = mean(CLOSE_DEF_DIST))
+```
+
+```{r}
+group_by(twosMissed, Pos) %>% summarise(sum = n(), shot_dist = mean(SHOT_DIST), def_dist = mean(CLOSE_DEF_DIST))
+```
+
+```{r}
+ggplot(draft_by_year, aes(x = drafted, y = avg_shooting)) + geom_line(color = "blue") + theme_bw() +
+  ggtitle("Shooting by Draft Year")
+```
+
+```{r}
+ggplot(draft_by_year, aes(x = drafted, y = assists_pct)) + geom_line(color = "red") + theme_bw() +
+  ggtitle("Assist % by Draft Year")
+```
+
+```{r}
+ggplot(draft_by_year, aes(x = drafted, y = dreb_pct)) + geom_line(color = "green") + theme_bw() +
+  ggtitle("Rebound % by Draft Year")
+```

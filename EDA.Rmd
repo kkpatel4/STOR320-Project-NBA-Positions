@@ -1,0 +1,309 @@
+---
+title: "EDA"
+author: "Kush Patel"
+date: "4/3/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(readr)
+library(stringr)
+```
+
+```{r}
+NBA_Player_Stats_18_to_19 <- read_csv("STOR 320 Data 1.csv")
+
+#First, we changed any value that was missing or N/A into 0
+
+NBA_Player_Stats_18_to_19[is.na(NBA_Player_Stats_18_to_19)] <- 0 
+
+
+# We filtered to only work with data that had players who played at least 1000 minutes in a season. This made the data easier to work with.
+
+NBA_Player_Stats_18_to_19 <-filter(NBA_Player_Stats_18_to_19, MP >= 1000)
+
+# Make Variable Names Easy to Read
+
+colnames(NBA_Player_Stats_18_to_19) <- c("Rk", "First", "Last", "Pos", "Age", "Team", 
+                    "Games", "Minutes", "PER", "TS", "ThreePAr", "FTr",
+                    "ORB", "DRB", "TRB", "AST", "STL", "BLK", "TOV", "USG", "OWS", "DWS", "WS", "WS/48", "OBPM", "DBPM", "BPM", "VORP")
+
+head(NBA_Player_Stats_18_to_19)
+```
+
+```{r}
+NBA_Player_Stats_08_to_09 <- read_csv("NBA_Player_Stats_08_to_09.csv")
+
+#First, we changed any value that was missing or N/A into 0
+
+NBA_Player_Stats_08_to_09[is.na(NBA_Player_Stats_08_to_09)] = 0
+
+#Then, based on inspection, we took out the X29 and X30 columns since for every player, the value was 0.
+
+NBA_Player_Stats_08_to_09 <- NBA_Player_Stats_08_to_09 %>% select(-X29, -X30)
+
+#Again, we filtered to only work with players who had played at least 1000 minutes in a season.
+#First we had to convert minutes played here to a double variable
+
+NBA_Player_Stats_08_to_09$MP <- as.numeric(NBA_Player_Stats_08_to_09$MP)
+
+NBA_Player_Stats_08_to_09 <- filter(NBA_Player_Stats_08_to_09, MP >= 1000)
+
+colnames(NBA_Player_Stats_08_to_09) <- c("Rk", "First", "Last", "Pos", "Age", "Team", 
+                    "Games", "Minutes", "PER", "TS", "ThreePAr", "FTr",
+                    "ORB", "DRB", "TRB", "AST", "STL", "BLK", "TOV", "USG", "OWS", "DWS", "WS", "WS/48", "OBPM", "DBPM", "BPM", "VORP")
+
+head(NBA_Player_Stats_08_to_09)
+```
+```{r}
+NBA_Player_Stats_14_to_15 <- read_csv("NBA_Player_Stats_14_to_15.csv")
+
+#First, we changed any value that was missing or N/A into 0
+
+NBA_Player_Stats_14_to_15[is.na(NBA_Player_Stats_14_to_15)] = 0
+
+
+colnames(NBA_Player_Stats_14_to_15) <- c("Rk", "Name", "Pos", "Age", "Team", 
+                    "Games", "Minutes", "PER", "TS", "ThreePAr", "FTr",
+                    "ORB", "DRB", "TRB", "AST", "STL", "BLK", "TOV", "USG", "IDK", "OWS", "DWS", "WS", "WS/48","idk", "OBPM", "DBPM", "BPM", "VORP")
+
+NBA_Player_Stats_14_to_15 <- mutate(NBA_Player_Stats_14_to_15, Name = str_remove(Name, "\\\\[[:alnum:]]*"))
+
+head(NBA_Player_Stats_14_to_15)
+```
+
+
+```{r}
+nbaNows <- mutate(NBA_Player_Stats_18_to_19, PosNum = ifelse(Pos == "PG", 1, ifelse(Pos == "SG", 2, ifelse(Pos == "SF", 3, ifelse(Pos == "PF", 4, 5)))))
+
+nbaNow <- select(nbaNows, -Rk, -First, -Last, -Pos, -Age, -Team, -Games,-Minutes, -OBPM, -DBPM)
+
+nbaNow
+```
+
+```{r}
+nbaOlds <- mutate(NBA_Player_Stats_08_to_09, PosNum = ifelse(Pos == "PG", 1, ifelse(Pos == "SG", 2, ifelse(Pos == "SF", 3, ifelse(Pos == "PF", 4, 5)))))
+
+nbaOld <- select(nbaOlds, -Rk, -First, -Last, -Pos, -Age, -Team, -Games,-Minutes, -OBPM, -DBPM)
+
+nbaOld
+```
+
+```{r}
+K <- 5
+set.seed(1305)
+m <- kmeans(data.matrix(nbaNow), centers = K)
+df_clusters <- mutate(nbaNow, cluster = factor(m$cluster))
+```
+
+```{r}
+set.seed(1305)
+m2 <- kmeans(data.matrix(nbaOld), centers = K)
+df_clusters2 <- mutate(nbaOld, cluster = factor(m2$cluster))
+```
+
+```{r}
+m$tot.withinss ; m2$tot.withinss
+```
+
+```{r}
+m$betweenss ; m2$betweenss
+```
+
+
+
+```{r}
+cent <- as_tibble(m$centers) %>% mutate(cluster = factor(1:K))
+ggplot(df_clusters, aes(PER, TS, color = cluster)) + geom_point(size = 3, alpha = .7) +
+  theme_bw() + scale_color_brewer(type = "qual", palette = "Set1")
+```
+
+```{r}
+group_by(df_clusters, cluster) %>% 
+  summarise(n = n(), PER = mean(PER),
+            TS = mean(TS), ThreePAr = mean(ThreePAr), TRB = mean(TRB), AST = mean(AST), FTr = mean(FTr), PosNum = mean(PosNum))
+```
+
+
+```{r}
+cent <- as_tibble(m2$centers) %>% mutate(cluster = factor(1:K))
+ggplot(df_clusters2, aes(PER, TS, color = cluster)) + geom_point(size = 3, alpha = .7) +
+  theme_bw() + scale_color_brewer(type = "qual", palette = "Set1")
+```
+
+```{r}
+group_by(df_clusters2, cluster) %>% 
+  summarise(n = n(), PER = mean(PER),
+            TS = mean(TS), ThreePAr = mean(ThreePAr), TRB = mean(TRB), AST = mean(AST), FTr = mean(FTr), PosNum = mean(PosNum))
+```
+
+```{r}
+positions <- nbaNows$Pos
+nbaNow <- select(nbaNow, -PosNum)
+pcaNew <- prcomp(nbaNow, scale. = TRUE)
+pcaNew$rotation[, 1]
+```
+
+```{r}
+positions2 <- nbaOlds$Pos
+nbaOld <- select(nbaOld, -PosNum)
+pcaOld <- prcomp(nbaOld, scale. = TRUE)
+pcaOld$rotation[, 1]
+```
+
+
+```{r}
+ggplot(data.frame(pcaNew$rotation), aes(x = PC1, y = PC2, label = rownames(pcaNew$rotation))) + 
+  geom_point(colour = "purple3") + geom_label(size = 5) + theme_minimal() + 
+  xlim(-.45, .5) + ylim(-.3, .5)
+```
+
+```{r}
+ggplot(data.frame(pcaOld$rotation), aes(x = PC1, y = PC2, label = rownames(pcaOld$rotation))) + 
+  geom_point(colour = "purple3") + geom_label(size = 5) + theme_minimal() + 
+  xlim(-.45, .5) + ylim(-.3, .5)
+```
+
+
+```{r}
+scores <- as.data.frame(pcaNew$x) %>% mutate(Positions = positions)
+ggplot(scores, aes(x = PC1, y = PC2, label = positions)) + geom_label(size = 4) + theme_bw() + ggtitle("Scores of PC1 by PC2")
+```
+
+```{r}
+pcaKmeansNew <- kmeans(pcaNew$x[, c(1,2)], 5)
+as_tibble(pcaNew$x) %>% mutate(cluster = factor(pcaKmeansNew$cluster), Positions = positions) %>%
+  ggplot(aes(PC1, PC2, color = cluster, label = positions)) + geom_label(size = 4) +
+  theme_bw() + scale_color_brewer(type = "qual", palette = "Set1")
+```
+
+```{r}
+scoresOld <- as.data.frame(pcaOld$x) %>% mutate(Positions = positions2)
+ggplot(scoresOld, aes(x = PC1, y = PC2, label = positions2)) + geom_label(size = 4) + theme_bw() + ggtitle("Scores of PC1 by PC2")
+```
+
+```{r}
+pcaKmeansOld <- kmeans(pcaOld$x[, c(1,2)], 5)
+as_tibble(pcaOld$x) %>% mutate(cluster = factor(pcaKmeansOld$cluster), Positions = positions2) %>%
+  ggplot(aes(PC1, PC2, color = cluster, label = positions2)) + geom_label(size = 4) +
+  theme_bw() + scale_color_brewer(type = "qual", palette = "Set1")
+```
+
+```{r}
+basicStats <- read_csv("genStats_18_to_19.csv")
+colnames(basicStats) <- c("Rk", "Player", "Pos", "Age", "Team", 
+                    "Games", "Games Started", "Minutes", "FG", "FGA", "FGPct", "ThreePt",
+                    "ThreePtA", "ThreePtPct", "TwoPt", "TwoPtA", "2PtPct", "eFGPct", "FT", "FTA", "FTPct", "ORebs", "DRebs", "Rebs", "Assists", "Steals", "Blocks", "TOs", "Fouls", "Points")
+
+# Change players with two positions to have their primary
+basicStats <- mutate(basicStats, Pos = ifelse(Pos == "C-PF", "C", substr(Pos, 0, 2)))
+
+basicStats
+```
+
+```{r}
+posStats <- group_by(basicStats, Pos) %>% summarize(size = n(), threesTaken = sum(ThreePtA), years = '2018-19')
+
+posStats
+```
+
+```{r}
+basicStatsOld <- read_csv("genStats_08_to_09.csv")
+colnames(basicStatsOld) <- c("Rk", "Player", "Pos", "Age", "Team", 
+                    "Games", "Games Started", "Minutes", "FG", "FGA", "FGPct", "ThreePt",
+                    "ThreePtA", "ThreePtPct", "TwoPt", "TwoPtA", "2PtPct", "eFGPct", "FT", "FTA", "FTPct", "ORebs", "DRebs", "Rebs", "Assists", "Steals", "Blocks", "TOs", "Fouls", "Points")
+
+# Change players with two positions to have their primary
+basicStatsOld <- mutate(basicStatsOld, Pos = ifelse(Pos == "C-PF", "C", substr(Pos, 0, 2)))
+
+basicStatsOld
+```
+
+```{r}
+posStatsOld <- group_by(basicStatsOld, Pos) %>% summarize(size = n(), threesTaken = sum(ThreePtA), years = '2008-09')
+
+posStatsOld
+```
+
+```{r}
+threesComparison <- rbind(posStatsOld, posStats)
+threesComparison
+```
+
+```{r}
+ggplot(threesComparison, aes(x = years, y = threesTaken, fill = Pos)) +
+  geom_bar(stat = 'identity') + theme_bw()
+```
+
+
+```{r}
+shots <-read_csv("shot_logs.csv")
+
+head(shots)
+```
+```{r}
+shots <- mutate(shots, Name = str_to_title(player_name))
+shotsPlayers <- merge(NBA_Player_Stats_14_to_15, shots, by = "Name")
+```
+
+```{r}
+threesMade <- filter(shotsPlayers, PTS == 3)
+```
+
+```{r}
+twosMade <- filter(shotsPlayers, PTS == 2)
+```
+
+```{r}
+group_by(threesMade, Pos) %>% summarise(sum = n(), shot_dist = mean(SHOT_DIST), def_dist = mean(CLOSE_DEF_DIST))
+```
+```{r}
+group_by(twosMade, Pos) %>% summarise(sum = n(), shot_dist = mean(SHOT_DIST), def_dist = mean(CLOSE_DEF_DIST))
+```
+```{r}
+threesMissed <- filter(shotsPlayers, FGM == 0, PTS_TYPE == 3)
+group_by(threesMissed, Pos) %>% summarise(sum = n(), shot_dist = mean(SHOT_DIST), def_dist = mean(CLOSE_DEF_DIST))
+```
+
+
+
+```{r}
+draft <- read_csv("all_seasons.csv") %>% mutate(draft_year = as.numeric(draft_year))
+
+draft
+```
+
+```{r}
+draft <- group_by(draft, player_name) %>% summarize(avg_shooting = mean(ts_pct), assists_pct = mean(ast_pct), dreb_pct = mean(dreb_pct), drafted = min(draft_year)) %>%
+  filter(!is.na(drafted))
+```
+
+```{r}
+draft_by_year <- group_by(draft, drafted) %>% summarize(count = n(), avg_shooting = mean(avg_shooting), assists_pct = mean(assists_pct), dreb_pct = mean(dreb_pct)) %>% filter(count >= 10)
+draft_by_year
+```
+
+```{r}
+ggplot(draft_by_year, aes(x = drafted, y = avg_shooting)) + geom_line(color = "blue") + theme_bw() +
+  ggtitle("Shooting by Draft Year")
+```
+
+```{r}
+ggplot(draft_by_year, aes(x = drafted, y = assists_pct)) + geom_line(color = "red") + theme_bw() +
+  ggtitle("Assist % by Draft Year")
+```
+
+```{r}
+ggplot(draft_by_year, aes(x = drafted, y = dreb_pct)) + geom_line(color = "green") + theme_bw() +
+  ggtitle("Rebound % by Draft Year")
+```
+
+```{r}
+
+```
+
